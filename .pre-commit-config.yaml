@@ -1,3 +1,5 @@
+default_stages: [pre-commit, pre-push]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
@@ -9,13 +11,11 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=1024"]
-      # опционально, но полезно
       - id: detect-private-key
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # ВАЖНО: rev тут = версия Ruff
     rev: v0.14.14
     hooks:
-      - id: ruff-check
+      - id: ruff
         args: ["--fix", "--exit-non-zero-on-fix"]
       - id: ruff-format
