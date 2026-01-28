@@ -1,8 +1,12 @@
-.venv
+.git
 __pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
 .pytest_cache
 .mypy_cache
 .ruff_cache
-.git
-tests
-*.md
+dist
+build
+*.log
