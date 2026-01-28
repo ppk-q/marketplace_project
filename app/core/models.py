@@ -18,17 +18,20 @@ metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 class Base(DeclarativeBase):
     """Общий Base для всех моделей."""
+
     metadata = metadata
 
 
 class IntIdPkMixin:
     """Миксин под общие поля."""
+
     __abstract__ = True
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
 
 
 class TimestampMixin:
     """Миксин для даты создания/обновления."""
+
     __abstract__ = True
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
