@@ -32,10 +32,14 @@ services:
     build:
       context: .
       dockerfile: docker/api/Dockerfile
+    working_dir: /app
+    volumes:
+      - ./:/app
     ports:
       - "8000:8000"
     environment:
       APP_ENV: dev
+      DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/app
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: app
