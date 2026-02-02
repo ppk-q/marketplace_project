@@ -8,14 +8,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.db import get_session
-from app.modules.blog.constants import (
+from app.constants import (
     PAGE_DEFAULT,
     PAGE_SIZE_DEFAULT,
     PAGE_SIZE_MAX,
     PAGE_SIZE_MIN,
     SEARCH_MIN_LENGTH,
 )
+from app.core.db import get_session
 from app.modules.blog.models import Article, Category, DeletedArticle
 from app.modules.blog.schemas import (
     ArticleCreate,

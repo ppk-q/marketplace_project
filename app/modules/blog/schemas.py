@@ -5,7 +5,7 @@ from math import ceil
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.modules.blog.constants import (
+from app.constants import (
     IMAGE_KEY_MAX_LENGTH,
     TEXT_MIN_LENGTH,
     TITLE_MAX_LENGTH,
