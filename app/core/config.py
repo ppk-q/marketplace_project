@@ -10,6 +10,10 @@ from app.constants import (
     JWT_DEFAULT_EMAIL_CONFIRM_TTL_MINUTES,
     JWT_DEFAULT_SECRET,
     JWT_MAX_ACCESS_TTL_MINUTES,
+    S3_DEFAULT_BUCKET_NAME,
+    S3_DEFAULT_PRESIGNED_TTL_SECONDS,
+    S3_DEFAULT_REGION,
+    S3_MAX_PRESIGNED_TTL_SECONDS,
 )
 
 
@@ -50,6 +54,40 @@ class Settings(BaseSettings):
     auth_cookie_secure: bool = Field(
         default=False,
         validation_alias="AUTH_COOKIE_SECURE",
+    )
+    auth_require_email_confirmed: bool = Field(
+        default=True,
+        validation_alias="AUTH_REQUIRE_EMAIL_CONFIRMED",
+    )
+    s3_endpoint_url: str = Field(
+        default="",
+        validation_alias="MINIO_ENDPOINT",
+    )
+    s3_access_key_id: str = Field(
+        default="",
+        validation_alias="MINIO_ACCESS_KEY",
+    )
+    s3_secret_access_key: str = Field(
+        default="",
+        validation_alias="MINIO_SECRET_KEY",
+    )
+    s3_bucket_name: str = Field(
+        default=S3_DEFAULT_BUCKET_NAME,
+        validation_alias="MINIO_BUCKET",
+    )
+    s3_secure: bool = Field(
+        default=False,
+        validation_alias="MINIO_SECURE",
+    )
+    s3_region_name: str = Field(
+        default=S3_DEFAULT_REGION,
+        validation_alias="S3_REGION",
+    )
+    s3_presigned_ttl_seconds: int = Field(
+        default=S3_DEFAULT_PRESIGNED_TTL_SECONDS,
+        ge=1,
+        le=S3_MAX_PRESIGNED_TTL_SECONDS,
+        validation_alias="S3_PRESIGNED_TTL_SECONDS",
     )
 
     @property

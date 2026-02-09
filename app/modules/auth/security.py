@@ -9,8 +9,10 @@ from passlib.context import CryptContext
 from app.constants import (
     JWT_CLAIM_EMAIL,
     JWT_CLAIM_EXP,
+    JWT_CLAIM_IAT,
     JWT_CLAIM_SUB,
     JWT_CLAIM_TOKEN_TYPE,
+    JWT_TOKEN_TYPE_ACCESS,
     JWT_TOKEN_TYPE_EMAIL_CONFIRM,
 )
 from app.core.config import settings
@@ -24,6 +26,15 @@ class AuthIdentity:
 
     user_id: int
     email: str
+
+
+@dataclass(frozen=True)
+class EmailConfirmIdentity:
+    """Данные токена подтверждения email после успешной валидации JWT."""
+
+    user_id: int
+    email: str
+    issued_at: datetime
 
 
 def hash_password(password: str) -> str:
@@ -42,10 +53,13 @@ def create_access_token(*, user_id: int, email: str) -> str:
     """Создаёт JWT access-токен с TTL из настроек приложения."""
 
     expire_at = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_ttl_minutes)
+    issued_at = datetime.now(UTC)
     payload = {
         JWT_CLAIM_SUB: str(user_id),
         JWT_CLAIM_EMAIL: email,
         JWT_CLAIM_EXP: expire_at,
+        JWT_CLAIM_IAT: issued_at,
+        JWT_CLAIM_TOKEN_TYPE: JWT_TOKEN_TYPE_ACCESS,
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
@@ -56,11 +70,13 @@ def create_email_confirm_token(
     """Создаёт JWT-токен подтверждения email с короткоживущим TTL."""
 
     minutes = ttl_minutes or settings.jwt_email_confirm_ttl_minutes
+    issued_at = datetime.now(UTC)
     expire_at = datetime.now(UTC) + timedelta(minutes=minutes)
     payload = {
         JWT_CLAIM_SUB: str(user_id),
         JWT_CLAIM_EMAIL: email,
         JWT_CLAIM_EXP: expire_at,
+        JWT_CLAIM_IAT: issued_at,
         JWT_CLAIM_TOKEN_TYPE: JWT_TOKEN_TYPE_EMAIL_CONFIRM,
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
@@ -78,23 +94,16 @@ def decode_access_token(token: str) -> AuthIdentity | None:
     except JWTError:
         return None
 
-    raw_user_id = payload.get(JWT_CLAIM_SUB)
-    email = payload.get(JWT_CLAIM_EMAIL)
-    if raw_user_id is None or email is None:
+    if payload.get(JWT_CLAIM_TOKEN_TYPE) != JWT_TOKEN_TYPE_ACCESS:
         return None
 
-    try:
-        user_id = int(raw_user_id)
-    except (TypeError, ValueError):
+    identity_data = _extract_identity_data(payload)
+    if identity_data is None:
         return None
-
-    if not email:
-        return None
-
-    return AuthIdentity(user_id=user_id, email=str(email))
+    return AuthIdentity(user_id=identity_data[0], email=identity_data[1])
 
 
-def decode_email_confirm_token(token: str) -> AuthIdentity | None:
+def decode_email_confirm_token(token: str) -> EmailConfirmIdentity | None:
     """Декодирует JWT-токен подтверждения email и валидирует тип токена."""
 
     try:
@@ -109,6 +118,21 @@ def decode_email_confirm_token(token: str) -> AuthIdentity | None:
     if payload.get(JWT_CLAIM_TOKEN_TYPE) != JWT_TOKEN_TYPE_EMAIL_CONFIRM:
         return None
 
+    identity_data = _extract_identity_data(payload)
+    if identity_data is None:
+        return None
+    user_id, email = identity_data
+
+    issued_at = _extract_issued_at(payload)
+    if issued_at is None:
+        return None
+
+    return EmailConfirmIdentity(user_id=user_id, email=email, issued_at=issued_at)
+
+
+def _extract_identity_data(payload: dict[str, object]) -> tuple[int, str] | None:
+    """Извлекает и валидирует обязательные поля `sub` и `email`."""
+
     raw_user_id = payload.get(JWT_CLAIM_SUB)
     email = payload.get(JWT_CLAIM_EMAIL)
     if raw_user_id is None or email is None:
@@ -119,7 +143,23 @@ def decode_email_confirm_token(token: str) -> AuthIdentity | None:
     except (TypeError, ValueError):
         return None
 
-    if not email:
+    email_value = str(email).strip()
+    if not email_value:
         return None
 
-    return AuthIdentity(user_id=user_id, email=str(email))
+    return user_id, email_value
+
+
+def _extract_issued_at(payload: dict[str, object]) -> datetime | None:
+    """Извлекает и валидирует обязательный claim `iat`."""
+
+    raw_issued_at = payload.get(JWT_CLAIM_IAT)
+    if raw_issued_at is None:
+        return None
+
+    try:
+        timestamp = float(raw_issued_at)
+    except (TypeError, ValueError):
+        return None
+
+    return datetime.fromtimestamp(timestamp, UTC)

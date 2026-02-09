@@ -11,6 +11,25 @@ PAGE_SIZE_MIN = 1
 PAGE_SIZE_MAX = 50
 SEARCH_MIN_LENGTH = 1
 
+# Media / S3
+S3_DEFAULT_BUCKET_NAME = "blog-images"
+S3_DEFAULT_REGION = "us-east-1"
+S3_DEFAULT_PRESIGNED_TTL_SECONDS = 900
+S3_MAX_PRESIGNED_TTL_SECONDS = 24 * 60 * 60
+MEDIA_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
+MEDIA_ALLOWED_IMAGE_EXTENSIONS = ("jpg", "jpeg", "png", "webp")
+MEDIA_ALLOWED_IMAGE_CONTENT_TYPES = ("image/jpeg", "image/png", "image/webp")
+MEDIA_IMAGE_CONTENT_TYPE_BY_EXTENSION = {
+    "jpg": "image/jpeg",
+    "jpeg": "image/jpeg",
+    "png": "image/png",
+    "webp": "image/webp",
+}
+MEDIA_IMAGE_KEY_PREFIX = "articles/"
+MEDIA_IMAGE_KEY_REGEX = r"^articles/[A-Za-z0-9][A-Za-z0-9/_\.-]*$"
+MEDIA_TAG = "media"
+MEDIA_PREFIX = "/media"
+
 # Auth
 EMAIL_MIN_LENGTH = 3
 EMAIL_MAX_LENGTH = 50
@@ -27,7 +46,9 @@ JWT_MAX_ACCESS_TTL_MINUTES = 24 * 60
 JWT_CLAIM_SUB = "sub"
 JWT_CLAIM_EMAIL = "email"
 JWT_CLAIM_EXP = "exp"
+JWT_CLAIM_IAT = "iat"
 JWT_CLAIM_TOKEN_TYPE = "token_type"
+JWT_TOKEN_TYPE_ACCESS = "access"
 JWT_TOKEN_TYPE_EMAIL_CONFIRM = "email_confirm"
 
 # Печеньки
@@ -47,12 +68,15 @@ OPENAPI_PATH = "/openapi.json"
 DOCS_PATH_PREFIX = "/docs"
 REDOC_PATH_PREFIX = "/redoc"
 HTTP_OPTIONS_METHOD = "OPTIONS"
+MEDIA_PRESIGN_UPLOAD_PATH = f"{API_V1_PREFIX}{MEDIA_PREFIX}/presign-upload"
+MEDIA_PRESIGN_DOWNLOAD_PATH = f"{API_V1_PREFIX}{MEDIA_PREFIX}/presign-download"
 
 # Auth сообщения
 AUTH_DETAIL_NOT_AUTHENTICATED = "Not authenticated"
 AUTH_DETAIL_INVALID_OR_EXPIRED_TOKEN = "Invalid or expired token"
 AUTH_DETAIL_INVALID_CREDENTIALS = "Invalid email or password"
 AUTH_DETAIL_LOGIN_SUCCESS = "Login successful"
+AUTH_DETAIL_EMAIL_NOT_CONFIRMED = "Email is not confirmed"
 AUTH_DETAIL_USER_EMAIL_EXISTS = "User with this email already exists"
 AUTH_DETAIL_USER_EMAIL_OR_PHONE_EXISTS = "User with this email or phone already exists"
 AUTH_DETAIL_EMAIL_CONFIRMED = "Email confirmed successfully"
@@ -60,6 +84,16 @@ AUTH_DETAIL_EMAIL_ALREADY_CONFIRMED = "Email is already confirmed"
 AUTH_DETAIL_INVALID_OR_EXPIRED_CONFIRM_TOKEN = (
     "Invalid or expired email confirmation token"
 )
+
+# Media messages
+MEDIA_DETAIL_INVALID_FILE_EXTENSION = "Unsupported image file extension"
+MEDIA_DETAIL_INVALID_CONTENT_TYPE = "Unsupported image content type"
+MEDIA_DETAIL_CONTENT_TYPE_EXTENSION_MISMATCH = (
+    "Content type does not match file extension"
+)
+MEDIA_DETAIL_INVALID_FILE_SIZE = "Invalid image size"
+MEDIA_DETAIL_INVALID_IMAGE_KEY = "Invalid image key"
+MEDIA_DETAIL_STORAGE_UNAVAILABLE = "Storage service unavailable"
 
 # ДБ ошибка
 DATABASE_URL_IS_NOT_SET_ERROR = "DATABASE_URL is not set"

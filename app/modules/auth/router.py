@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from urllib.parse import urlencode
 
@@ -13,8 +13,8 @@ from app.constants import (
     AUTH_CONFIRM_EMAIL_ENDPOINT,
     AUTH_CONFIRM_EMAIL_PATH,
     AUTH_COOKIE_HTTPONLY,
-    AUTH_DETAIL_EMAIL_ALREADY_CONFIRMED,
     AUTH_DETAIL_EMAIL_CONFIRMED,
+    AUTH_DETAIL_EMAIL_NOT_CONFIRMED,
     AUTH_DETAIL_INVALID_CREDENTIALS,
     AUTH_DETAIL_INVALID_OR_EXPIRED_CONFIRM_TOKEN,
     AUTH_DETAIL_LOGIN_SUCCESS,
@@ -132,6 +132,11 @@ async def login(payload: LoginIn, response: Response, session: SessionDep) -> Lo
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=AUTH_DETAIL_INVALID_CREDENTIALS,
         )
+    if settings.auth_require_email_confirmed and not user.is_email_confirmed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=AUTH_DETAIL_EMAIL_NOT_CONFIRMED,
+        )
 
     token = create_access_token(user_id=user.id, email=user.email)
     response.set_cookie(
@@ -167,7 +172,20 @@ async def confirm_email(
         )
 
     if user.is_email_confirmed:
-        return ConfirmEmailOut(detail=AUTH_DETAIL_EMAIL_ALREADY_CONFIRMED)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=AUTH_DETAIL_INVALID_OR_EXPIRED_CONFIRM_TOKEN,
+        )
+
+    created_at = user.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=UTC)
+    # Токен должен быть выпущен не раньше создания пользователя.
+    if identity.issued_at + timedelta(seconds=1) < created_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=AUTH_DETAIL_INVALID_OR_EXPIRED_CONFIRM_TOKEN,
+        )
 
     try:
         await _mark_email_confirmed(session, user)

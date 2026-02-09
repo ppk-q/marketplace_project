@@ -9,6 +9,7 @@ import pytest
 from app.constants import (
     AUTH_CONFIRM_EMAIL_PATH,
     AUTH_DETAIL_EMAIL_CONFIRMED,
+    AUTH_DETAIL_EMAIL_NOT_CONFIRMED,
     AUTH_DETAIL_INVALID_CREDENTIALS,
     AUTH_DETAIL_INVALID_OR_EXPIRED_CONFIRM_TOKEN,
     AUTH_DETAIL_LOGIN_SUCCESS,
@@ -89,6 +90,7 @@ async def test_login_sets_http_only_jwt_cookie(client, monkeypatch) -> None:
         id=5,
         email="bob@example.com",
         password_hash=hash_password("strong-pass-123"),
+        is_email_confirmed=True,
     )
 
     async def fake_get_user_by_email(session, email: str):
@@ -120,6 +122,7 @@ async def test_login_wrong_password_returns_auth_error(client, monkeypatch) -> N
         id=7,
         email="charlie@example.com",
         password_hash=hash_password("correct-password"),
+        is_email_confirmed=True,
     )
 
     async def fake_get_user_by_email(session, email: str):
@@ -147,6 +150,7 @@ async def test_confirm_email_success_sets_email_confirmed(client, monkeypatch) -
         email="confirm@example.com",
         is_email_confirmed=False,
         email_confirmed_at=None,
+        created_at=datetime.now(UTC),
     )
     marked_users: list[int] = []
 
@@ -204,3 +208,57 @@ async def test_confirm_email_expired_token_returns_error(client) -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"] == AUTH_DETAIL_INVALID_OR_EXPIRED_CONFIRM_TOKEN
+
+
+@pytest.mark.asyncio
+async def test_confirm_email_reuse_returns_error(client, monkeypatch) -> None:
+    fake_user = SimpleNamespace(
+        id=31,
+        email="already-confirmed@example.com",
+        is_email_confirmed=True,
+        email_confirmed_at=datetime.now(UTC),
+        created_at=datetime.now(UTC),
+    )
+
+    async def fake_get_user_by_id(session, user_id: int):
+        if user_id == fake_user.id:
+            return fake_user
+        return None
+
+    monkeypatch.setattr(auth_router_module, "_get_user_by_id", fake_get_user_by_id)
+
+    token = create_email_confirm_token(user_id=fake_user.id, email=fake_user.email)
+    response = await client.get(
+        "/api/v1/auth/confirm-email",
+        params={"token": token},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == AUTH_DETAIL_INVALID_OR_EXPIRED_CONFIRM_TOKEN
+
+
+@pytest.mark.asyncio
+async def test_login_unconfirmed_email_returns_forbidden(client, monkeypatch) -> None:
+    fake_user = SimpleNamespace(
+        id=41,
+        email="unconfirmed@example.com",
+        password_hash=hash_password("strong-pass-123"),
+        is_email_confirmed=False,
+    )
+
+    async def fake_get_user_by_email(session, email: str):
+        if email == fake_user.email:
+            return fake_user
+        return None
+
+    monkeypatch.setattr(
+        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+    )
+
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={"email": "unconfirmed@example.com", "password": "strong-pass-123"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == AUTH_DETAIL_EMAIL_NOT_CONFIRMED
