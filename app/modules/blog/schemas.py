@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from math import ceil
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.constants import (
     IMAGE_KEY_MAX_LENGTH,
@@ -11,6 +11,7 @@ from app.constants import (
     TITLE_MAX_LENGTH,
     TITLE_MIN_LENGTH,
 )
+from app.modules.media.validators import validate_image_key
 
 
 class CategoryCreate(BaseModel):
@@ -52,6 +53,13 @@ class ArticleCreate(BaseModel):
         description="Ключ или путь до обложки статьи в файловом хранилище.",
     )
 
+    @field_validator("image_key")
+    @classmethod
+    def check_image_key(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return validate_image_key(value)
+
 
 class ArticleUpdate(BaseModel):
     """Данные для частичного обновления существующей статьи."""
@@ -76,6 +84,13 @@ class ArticleUpdate(BaseModel):
         max_length=IMAGE_KEY_MAX_LENGTH,
         description="Новый ключ обложки статьи. Передайте null, чтобы удалить.",
     )
+
+    @field_validator("image_key")
+    @classmethod
+    def check_image_key(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return validate_image_key(value)
 
 
 class ArticleOut(BaseModel):

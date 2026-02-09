@@ -63,16 +63,15 @@ async def create_category(payload: CategoryCreate, session: SessionDep) -> Categ
     """Создать новую категорию блога."""
 
     category = Category(title=payload.title)
-
-    async with session.begin():
-        session.add(category)
-        try:
-            await session.flush()
-        except IntegrityError as err:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Category with this title already exists",
-            ) from err
+    session.add(category)
+    try:
+        await session.commit()
+    except IntegrityError as err:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Category with this title already exists",
+        ) from err
 
     await session.refresh(category)
     return category
@@ -100,9 +99,16 @@ async def create_article(payload: ArticleCreate, session: SessionDep) -> Article
         category_id=payload.category_id,
         image_key=payload.image_key,
     )
+    session.add(article)
 
-    async with session.begin():
-        session.add(article)
+    try:
+        await session.commit()
+    except IntegrityError as err:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Failed to create article",
+        ) from err
 
     created = await _get_article_with_category(session, article.id)
     assert created
@@ -193,8 +199,15 @@ async def update_article(
         # Учитываем явное null, чтобы можно было сбросить обложку
         article.image_key = payload.image_key
 
-    async with session.begin():
-        session.add(article)
+    session.add(article)
+    try:
+        await session.commit()
+    except IntegrityError as err:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Failed to update article",
+        ) from err
 
     updated = await _get_article_with_category(session, article_id)
     assert updated
@@ -208,21 +221,28 @@ async def delete_article(
 ) -> None:
     """Удалить статью, сохранив копию в таблице deleted_articles."""
 
-    async with session.begin():
-        res = await session.execute(select(Article).where(Article.id == article_id))
-        article = res.scalar_one_or_none()
-        if article is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Article not found"
-            )
-
-        deleted = DeletedArticle(
-            title=article.title,
-            text=article.text,
-            category_id=article.category_id,
-            image_key=article.image_key,
-            created_at=article.created_at,
-            updated_at=article.updated_at,
+    res = await session.execute(select(Article).where(Article.id == article_id))
+    article = res.scalar_one_or_none()
+    if article is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Article not found"
         )
-        session.add(deleted)
-        await session.delete(article)
+
+    deleted = DeletedArticle(
+        title=article.title,
+        text=article.text,
+        category_id=article.category_id,
+        image_key=article.image_key,
+        created_at=article.created_at,
+        updated_at=article.updated_at,
+    )
+    session.add(deleted)
+    await session.delete(article)
+    try:
+        await session.commit()
+    except IntegrityError as err:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Failed to delete article",
+        ) from err
