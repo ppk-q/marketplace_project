@@ -1,11 +1,12 @@
-# worker/tasks.py
 from worker.celery_app import celery_app
 
 
 @celery_app.task(name="send_registration_email")
-def send_registration_email(email: str) -> None:
+def send_registration_email(email: str, confirmation_link: str) -> None:
     """
     Пока заглушка: имитируем отправку письма.
-    На следующих шагах заменим на реальный SMTP/провайдера.
     """
-    print(f"[EMAIL] Registration email sent to: {email}")
+    print(
+        f"[EMAIL] Registration email sent to: {email}. "
+        f"Confirm link: {confirmation_link}"
+    )

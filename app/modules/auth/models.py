@@ -9,6 +9,8 @@ from app.core.models import Base, IntIdPkMixin
 
 
 class User(Base, IntIdPkMixin):
+    """Модель пользователя для аутентификации и регистрации."""
+
     __tablename__ = "users"
 
     email: Mapped[str] = mapped_column(
