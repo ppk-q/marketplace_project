@@ -2,13 +2,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
-from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter, Depends, Path, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.constants import (
+from app.constants_blog import (
     PAGE_DEFAULT,
     PAGE_SIZE_DEFAULT,
     PAGE_SIZE_MAX,
@@ -16,7 +13,7 @@ from app.constants import (
     SEARCH_MIN_LENGTH,
 )
 from app.core.db import get_session
-from app.modules.blog.models import Article, Category, DeletedArticle
+from app.core.http_errors import raise_http_exception_from_service_error
 from app.modules.blog.schemas import (
     ArticleCreate,
     ArticleListOut,
@@ -25,98 +22,67 @@ from app.modules.blog.schemas import (
     CategoryCreate,
     CategoryOut,
 )
+from app.modules.blog.service import (
+    BlogServiceError,
+    create_article,
+    create_category,
+    delete_article,
+    get_article,
+    list_articles,
+    list_categories,
+    update_article,
+)
 
 router = APIRouter(tags=["blog"])
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
-async def _ensure_category_exists(session: AsyncSession, category_id: int) -> None:
-    """Проверяет наличие категории и выбрасывает 404, если она не найдена."""
-
-    exists = await session.execute(
-        select(Category.id).where(Category.id == category_id)
-    )
-    if exists.scalar_one_or_none() is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
-        )
-
-
-async def _get_article_with_category(
-    session: AsyncSession, article_id: int
-) -> Article | None:
-    """Возвращает статью вместе с категорией либо None, если статья отсутствует."""
-
-    res = await session.execute(
-        select(Article)
-        .where(Article.id == article_id)
-        .options(selectinload(Article.category))
-    )
-    return res.scalar_one_or_none()
-
-
 @router.post(
-    "/categories", response_model=CategoryOut, status_code=status.HTTP_201_CREATED
+    "/categories",
+    response_model=CategoryOut,
+    status_code=status.HTTP_201_CREATED,
 )
-async def create_category(payload: CategoryCreate, session: SessionDep) -> CategoryOut:
-    """Создать новую категорию блога."""
+async def create_category_endpoint(
+    payload: CategoryCreate,
+    session: SessionDep,
+) -> CategoryOut:
+    """Создаёт новую категорию блога."""
 
-    category = Category(title=payload.title)
-    session.add(category)
     try:
-        await session.commit()
-    except IntegrityError as err:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Category with this title already exists",
-        ) from err
-
-    await session.refresh(category)
+        category = await create_category(session, payload)
+    except BlogServiceError as err:
+        raise_http_exception_from_service_error(err)
     return category
 
 
 @router.get("/categories", response_model=list[CategoryOut])
-async def list_categories(session: SessionDep) -> list[CategoryOut]:
-    """Вернуть все категории, отсортированные по названию."""
+async def list_categories_endpoint(session: SessionDep) -> list[CategoryOut]:
+    """Возвращает все категории, отсортированные по названию."""
 
-    res = await session.execute(select(Category).order_by(Category.title.asc()))
-    return list(res.scalars().all())
+    return await list_categories(session)
 
 
 @router.post(
-    "/articles", response_model=ArticleOut, status_code=status.HTTP_201_CREATED
+    "/articles",
+    response_model=ArticleOut,
+    status_code=status.HTTP_201_CREATED,
 )
-async def create_article(payload: ArticleCreate, session: SessionDep) -> ArticleOut:
-    """Создать статью в выбранной категории."""
-
-    await _ensure_category_exists(session, payload.category_id)
-
-    article = Article(
-        title=payload.title,
-        text=payload.text,
-        category_id=payload.category_id,
-        image_key=payload.image_key,
-    )
-    session.add(article)
+async def create_article_endpoint(
+    payload: ArticleCreate,
+    session: SessionDep,
+) -> ArticleOut:
+    """Создаёт статью в выбранной категории."""
 
     try:
-        await session.commit()
-    except IntegrityError as err:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Failed to create article",
-        ) from err
-
-    created = await _get_article_with_category(session, article.id)
-    assert created
-    return created
+        article = await create_article(session, payload)
+    except BlogServiceError as err:
+        raise_http_exception_from_service_error(err)
+    return article
 
 
 @router.get("/articles", response_model=ArticleListOut)
-async def list_articles(
+async def list_articles_endpoint(
     session: SessionDep,
     page_number: int = Query(
         default=PAGE_DEFAULT,
@@ -140,125 +106,54 @@ async def list_articles(
         description="Полнотекстовый поиск по заголовку и тексту.",
     ),
 ) -> ArticleListOut:
-    """Список статей с пагинацией, фильтром по категории и поиском."""
+    """Возвращает список статей с пагинацией, фильтрами и FTS-поиском."""
 
-    filters = []
-
-    if category_id is not None:
-        filters.append(Article.category_id == category_id)
-
-    if search:
-        doc = func.coalesce(Article.title, "")
-        doc = doc.op("||")(" ")
-        doc = doc.op("||")(func.coalesce(Article.text, ""))
-        ts_vec = func.to_tsvector("russian", doc)
-        ts_q = func.plainto_tsquery("russian", search)
-        filters.append(ts_vec.op("@@")(ts_q))
-
-    total_res = await session.execute(select(func.count(Article.id)).where(*filters))
-    total = int(total_res.scalar_one())
-
-    offset = (page_number - 1) * page_size
-    res = await session.execute(
-        select(Article)
-        .where(*filters)
-        .options(selectinload(Article.category))
-        .order_by(Article.created_at.desc())
-        .offset(offset)
-        .limit(page_size)
-    )
-    items = list(res.scalars().all())
-
-    return ArticleListOut.build(
-        items=items, page_number=page_number, page_size=page_size, total=total
+    return await list_articles(
+        session,
+        page_number=page_number,
+        page_size=page_size,
+        category_id=category_id,
+        search=search,
     )
 
 
 @router.get("/articles/{article_id}", response_model=ArticleOut)
-async def get_article(
+async def get_article_endpoint(
     article_id: Annotated[int, Path(ge=1, description="ID статьи для просмотра.")],
     session: SessionDep,
 ) -> ArticleOut:
-    """Вернуть одну статью по ID вместе с категорией."""
+    """Возвращает одну статью по ID вместе с категорией."""
 
-    article = await _get_article_with_category(session, article_id)
-    if article is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Article not found",
-        )
+    try:
+        article = await get_article(session, article_id)
+    except BlogServiceError as err:
+        raise_http_exception_from_service_error(err)
     return article
 
 
 @router.patch("/articles/{article_id}", response_model=ArticleOut)
-async def update_article(
+async def update_article_endpoint(
     article_id: Annotated[int, Path(ge=1, description="ID статьи для обновления.")],
     payload: ArticleUpdate,
     session: SessionDep,
 ) -> ArticleOut:
-    """Частично обновить статью и вернуть актуальные данные."""
+    """Частично обновляет статью и возвращает актуальные данные."""
 
-    article = await _get_article_with_category(session, article_id)
-    if article is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Article not found"
-        )
-
-    if payload.category_id is not None:
-        await _ensure_category_exists(session, payload.category_id)
-        article.category_id = payload.category_id
-
-    if payload.title is not None:
-        article.title = payload.title
-    if payload.text is not None:
-        article.text = payload.text
-    if payload.image_key is not None or "image_key" in payload.model_fields_set:
-        article.image_key = payload.image_key
-
-    session.add(article)
     try:
-        await session.commit()
-    except IntegrityError as err:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Failed to update article",
-        ) from err
-
-    updated = await _get_article_with_category(session, article_id)
-    assert updated
-    return updated
+        article = await update_article(session, article_id=article_id, payload=payload)
+    except BlogServiceError as err:
+        raise_http_exception_from_service_error(err)
+    return article
 
 
 @router.delete("/articles/{article_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_article(
+async def delete_article_endpoint(
     article_id: Annotated[int, Path(ge=1, description="ID статьи для удаления.")],
     session: SessionDep,
 ) -> None:
-    """Удалить статью, сохранив копию в таблице deleted_articles."""
+    """Удаляет статью и переносит запись в archived таблицу."""
 
-    res = await session.execute(select(Article).where(Article.id == article_id))
-    article = res.scalar_one_or_none()
-    if article is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Article not found"
-        )
-
-    deleted = DeletedArticle(
-        title=article.title,
-        text=article.text,
-        category_id=article.category_id,
-        image_key=article.image_key,
-        created_at=article.created_at,
-        updated_at=article.updated_at,
-    )
-    session.add(deleted)
-    await session.delete(article)
     try:
-        await session.commit()
-    except IntegrityError as err:
-        await session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Failed to delete article",
-        ) from err
+        await delete_article(session, article_id)
+    except BlogServiceError as err:
+        raise_http_exception_from_service_error(err)

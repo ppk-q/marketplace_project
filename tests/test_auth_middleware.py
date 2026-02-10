@@ -3,7 +3,8 @@ from __future__ import annotations
 import pytest
 from starlette.requests import Request
 
-from app.constants import (
+from app.constants_api import HEALTH_PATH
+from app.constants_auth import (
     AUTH_DETAIL_INVALID_OR_EXPIRED_TOKEN,
     AUTH_DETAIL_NOT_AUTHENTICATED,
 )
@@ -87,3 +88,9 @@ def test_patch_article_detail_remains_protected() -> None:
     request = _build_request(method="PATCH", path="/api/v1/articles/123")
 
     assert _is_protected_request(request) is True
+
+
+def test_health_endpoint_is_not_protected() -> None:
+    request = _build_request(method="GET", path=HEALTH_PATH)
+
+    assert _is_protected_request(request) is False

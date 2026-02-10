@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from app.constants import (
+from app.constants_auth import (
     AUTH_CONFIRM_EMAIL_PATH,
     AUTH_COOKIE_PATH_REFRESH,
     AUTH_DETAIL_EMAIL_CONFIRMED,
@@ -20,6 +20,7 @@ from app.constants import (
 )
 from app.core.config import settings
 from app.modules.auth import router as auth_router_module
+from app.modules.auth import service as auth_service_module
 from app.modules.auth.security import (
     create_email_confirm_token,
     create_refresh_token,
@@ -53,9 +54,9 @@ async def test_register_enqueues_confirm_email_task_with_link(
         enqueued_payloads.append((email, confirmation_link))
 
     monkeypatch.setattr(
-        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+        auth_service_module, "get_user_by_email", fake_get_user_by_email
     )
-    monkeypatch.setattr(auth_router_module, "_create_user", fake_create_user)
+    monkeypatch.setattr(auth_service_module, "create_user", fake_create_user)
     monkeypatch.setattr(
         auth_router_module,
         "send_registration_email",
@@ -104,7 +105,7 @@ async def test_login_sets_http_only_jwt_cookie(client, monkeypatch) -> None:
         return None
 
     monkeypatch.setattr(
-        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+        auth_service_module, "get_user_by_email", fake_get_user_by_email
     )
 
     response = await client.post(
@@ -136,7 +137,7 @@ async def test_login_wrong_password_returns_auth_error(client, monkeypatch) -> N
         return None
 
     monkeypatch.setattr(
-        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+        auth_service_module, "get_user_by_email", fake_get_user_by_email
     )
 
     response = await client.post(
@@ -170,9 +171,9 @@ async def test_confirm_email_success_sets_email_confirmed(client, monkeypatch) -
         marked_users.append(user.id)
         return user
 
-    monkeypatch.setattr(auth_router_module, "_get_user_by_id", fake_get_user_by_id)
+    monkeypatch.setattr(auth_service_module, "get_user_by_id", fake_get_user_by_id)
     monkeypatch.setattr(
-        auth_router_module, "_mark_email_confirmed", fake_mark_email_confirmed
+        auth_service_module, "mark_email_confirmed", fake_mark_email_confirmed
     )
 
     token = create_email_confirm_token(user_id=fake_user.id, email=fake_user.email)
@@ -230,7 +231,7 @@ async def test_confirm_email_reuse_returns_error(client, monkeypatch) -> None:
             return fake_user
         return None
 
-    monkeypatch.setattr(auth_router_module, "_get_user_by_id", fake_get_user_by_id)
+    monkeypatch.setattr(auth_service_module, "get_user_by_id", fake_get_user_by_id)
 
     token = create_email_confirm_token(user_id=fake_user.id, email=fake_user.email)
     response = await client.get(
@@ -257,7 +258,7 @@ async def test_login_unconfirmed_email_returns_forbidden(client, monkeypatch) ->
         return None
 
     monkeypatch.setattr(
-        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+        auth_service_module, "get_user_by_email", fake_get_user_by_email
     )
 
     response = await client.post(
@@ -291,9 +292,9 @@ async def test_refresh_with_valid_cookie_rotates_refresh_token(
         return None
 
     monkeypatch.setattr(
-        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+        auth_service_module, "get_user_by_email", fake_get_user_by_email
     )
-    monkeypatch.setattr(auth_router_module, "_get_user_by_id", fake_get_user_by_id)
+    monkeypatch.setattr(auth_service_module, "get_user_by_id", fake_get_user_by_id)
 
     login_response = await client.post(
         "/api/v1/auth/login",
@@ -357,9 +358,9 @@ async def test_refresh_reuse_old_rotated_token_returns_auth_error(
         return None
 
     monkeypatch.setattr(
-        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+        auth_service_module, "get_user_by_email", fake_get_user_by_email
     )
-    monkeypatch.setattr(auth_router_module, "_get_user_by_id", fake_get_user_by_id)
+    monkeypatch.setattr(auth_service_module, "get_user_by_id", fake_get_user_by_id)
 
     login_response = await client.post(
         "/api/v1/auth/login",
@@ -408,9 +409,9 @@ async def test_logout_clears_cookies_and_blocks_further_refresh(
         return None
 
     monkeypatch.setattr(
-        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+        auth_service_module, "get_user_by_email", fake_get_user_by_email
     )
-    monkeypatch.setattr(auth_router_module, "_get_user_by_id", fake_get_user_by_id)
+    monkeypatch.setattr(auth_service_module, "get_user_by_id", fake_get_user_by_id)
 
     login_response = await client.post(
         "/api/v1/auth/login",

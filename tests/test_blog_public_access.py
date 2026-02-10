@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.constants import AUTH_DETAIL_NOT_AUTHENTICATED
+from app.constants_auth import AUTH_DETAIL_NOT_AUTHENTICATED
 from app.core.db import get_session
 from app.main import app
 

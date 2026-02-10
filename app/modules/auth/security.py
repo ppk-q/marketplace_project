@@ -7,7 +7,7 @@ from uuid import uuid4
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from app.constants import (
+from app.constants_auth import (
     JWT_CLAIM_EMAIL,
     JWT_CLAIM_EXP,
     JWT_CLAIM_IAT,
@@ -65,8 +65,8 @@ def verify_password(password: str, password_hash: str) -> bool:
 def create_access_token(*, user_id: int, email: str) -> str:
     """Создаёт JWT access-токен с TTL из настроек приложения."""
 
-    expire_at = datetime.now(UTC) + timedelta(minutes=settings.jwt_access_ttl_minutes)
     issued_at = datetime.now(UTC)
+    expire_at = issued_at + timedelta(minutes=settings.jwt_access_ttl_minutes)
     payload = {
         JWT_CLAIM_SUB: str(user_id),
         JWT_CLAIM_EMAIL: email,
@@ -84,7 +84,7 @@ def create_email_confirm_token(
 
     minutes = ttl_minutes or settings.jwt_email_confirm_ttl_minutes
     issued_at = datetime.now(UTC)
-    expire_at = datetime.now(UTC) + timedelta(minutes=minutes)
+    expire_at = issued_at + timedelta(minutes=minutes)
     payload = {
         JWT_CLAIM_SUB: str(user_id),
         JWT_CLAIM_EMAIL: email,
@@ -119,13 +119,8 @@ def create_refresh_token(
 def decode_access_token(token: str) -> AuthIdentity | None:
     """Декодирует JWT access-токен и возвращает identity либо `None`."""
 
-    try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[settings.jwt_algorithm],
-        )
-    except JWTError:
+    payload = _decode_payload(token)
+    if payload is None:
         return None
 
     if payload.get(JWT_CLAIM_TOKEN_TYPE) != JWT_TOKEN_TYPE_ACCESS:
@@ -140,13 +135,8 @@ def decode_access_token(token: str) -> AuthIdentity | None:
 def decode_email_confirm_token(token: str) -> EmailConfirmIdentity | None:
     """Декодирует JWT-токен подтверждения email и валидирует тип токена."""
 
-    try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[settings.jwt_algorithm],
-        )
-    except JWTError:
+    payload = _decode_payload(token)
+    if payload is None:
         return None
 
     if payload.get(JWT_CLAIM_TOKEN_TYPE) != JWT_TOKEN_TYPE_EMAIL_CONFIRM:
@@ -167,13 +157,8 @@ def decode_email_confirm_token(token: str) -> EmailConfirmIdentity | None:
 def decode_refresh_token(token: str) -> RefreshIdentity | None:
     """Декодирует refresh-токен и валидирует обязательные claims."""
 
-    try:
-        payload = jwt.decode(
-            token,
-            settings.jwt_secret,
-            algorithms=[settings.jwt_algorithm],
-        )
-    except JWTError:
+    payload = _decode_payload(token)
+    if payload is None:
         return None
 
     if payload.get(JWT_CLAIM_TOKEN_TYPE) != JWT_TOKEN_TYPE_REFRESH:
@@ -222,6 +207,24 @@ def _extract_identity_data(payload: dict[str, object]) -> tuple[int, str] | None
         return None
 
     return user_id, email_value
+
+
+def _decode_payload(token: str) -> dict[str, object] | None:
+    """Декодирует JWT и возвращает payload-словарь либо `None` при ошибке."""
+
+    try:
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm],
+        )
+    except JWTError:
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    return payload
 
 
 def _extract_issued_at(payload: dict[str, object]) -> datetime | None:

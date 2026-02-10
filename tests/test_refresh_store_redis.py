@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.constants import AUTH_REFRESH_STORE_BACKEND_REDIS
+from app.constants_auth import AUTH_REFRESH_STORE_BACKEND_REDIS
 from app.core.config import settings
 from app.modules.auth import refresh_store
 

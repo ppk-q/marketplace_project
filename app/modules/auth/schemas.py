@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.constants import (
+from app.constants_auth import (
     EMAIL_MAX_LENGTH,
     EMAIL_MIN_LENGTH,
     PASSWORD_MAX_LENGTH,

@@ -1,7 +1,7 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.constants import (
+from app.constants_auth import (
     AUTH_COOKIE_DOMAIN_DEFAULT,
     AUTH_COOKIE_NAME_DEFAULT,
     AUTH_COOKIE_SAMESITE_DEFAULT,
@@ -12,18 +12,20 @@ from app.constants import (
     AUTH_REFRESH_STORE_BACKEND_DEFAULT,
     AUTH_REFRESH_STORE_BACKEND_MEMORY,
     AUTH_REFRESH_STORE_BACKEND_REDIS,
-    DATABASE_URL_IS_NOT_SET_ERROR,
     JWT_DEFAULT_ACCESS_TTL_MINUTES,
     JWT_DEFAULT_ALGORITHM,
     JWT_DEFAULT_EMAIL_CONFIRM_TTL_MINUTES,
     JWT_DEFAULT_REFRESH_TTL_MINUTES,
     JWT_DEFAULT_SECRET,
     JWT_MAX_ACCESS_TTL_MINUTES,
+)
+from app.constants_media import (
     S3_DEFAULT_BUCKET_NAME,
     S3_DEFAULT_PRESIGNED_TTL_SECONDS,
     S3_DEFAULT_REGION,
     S3_MAX_PRESIGNED_TTL_SECONDS,
 )
+from app.constants_system import DATABASE_URL_IS_NOT_SET_ERROR
 
 
 class Settings(BaseSettings):

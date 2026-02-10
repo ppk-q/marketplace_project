@@ -1,28 +1,42 @@
-# worker/celery_app.py
+from __future__ import annotations
+
 import os
+from typing import Final
 
 from celery import Celery
 
+DEFAULT_RABBITMQ_HOST: Final[str] = "localhost"
+DEFAULT_RABBITMQ_PORT: Final[str] = "5672"
+DEFAULT_RABBITMQ_USER: Final[str] = "guest"
+DEFAULT_RABBITMQ_PASSWORD: Final[str] = "guest"
+
 
 def _broker_url() -> str:
-    """
-    Собираем AMQP URL из env.
-    В docker-compose мы задаём RABBITMQ_HOST=rabbitmq и RABBITMQ_PORT=5672.
-    """
-    host = os.getenv("RABBITMQ_HOST", "localhost")
-    port = os.getenv("RABBITMQ_PORT", "5672")
-    user = os.getenv("RABBITMQ_USER", "guest")
-    password = os.getenv("RABBITMQ_PASSWORD", "guest")
+    """Собирает AMQP URL из переменных окружения."""
 
-    # Стандартный формат для RabbitMQ (AMQP)
+    host = os.getenv("RABBITMQ_HOST", DEFAULT_RABBITMQ_HOST).strip()
+    port = os.getenv("RABBITMQ_PORT", DEFAULT_RABBITMQ_PORT).strip()
+    user = os.getenv("RABBITMQ_USER", DEFAULT_RABBITMQ_USER).strip()
+    password = os.getenv("RABBITMQ_PASSWORD", DEFAULT_RABBITMQ_PASSWORD).strip()
+
+    if not host:
+        host = DEFAULT_RABBITMQ_HOST
+    if not port:
+        port = DEFAULT_RABBITMQ_PORT
+    if not user:
+        user = DEFAULT_RABBITMQ_USER
+    if not password:
+        password = DEFAULT_RABBITMQ_PASSWORD
+
     return f"amqp://{user}:{password}@{host}:{port}//"
 
 
-# ВАЖНО: объект должен называться celery_app
-celery_app = Celery(
-    "worker",
-    broker=_broker_url(),
-)
+def _create_celery_app() -> Celery:
+    """Создаёт и настраивает Celery-приложение воркера."""
 
-# Автопоиск задач в модуле worker.tasks
-celery_app.autodiscover_tasks(["worker"])
+    application = Celery("worker", broker=_broker_url())
+    application.autodiscover_tasks(["worker"])
+    return application
+
+
+celery_app = _create_celery_app()

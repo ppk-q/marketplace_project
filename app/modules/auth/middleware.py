@@ -5,8 +5,15 @@ from collections.abc import Awaitable, Callable
 from fastapi import Request, status
 from fastapi.responses import JSONResponse, Response
 
-from app.constants import (
+from app.constants_api import (
     API_V1_PREFIX,
+    DOCS_PATH_PREFIX,
+    HTTP_GET_METHOD,
+    HTTP_OPTIONS_METHOD,
+    OPENAPI_PATH,
+    REDOC_PATH_PREFIX,
+)
+from app.constants_auth import (
     AUTH_CONFIRM_EMAIL_PATH,
     AUTH_DETAIL_INVALID_OR_EXPIRED_TOKEN,
     AUTH_DETAIL_NOT_AUTHENTICATED,
@@ -14,14 +21,11 @@ from app.constants import (
     AUTH_LOGOUT_PATH,
     AUTH_REFRESH_PATH,
     AUTH_REGISTER_PATH,
+)
+from app.constants_blog import (
     BLOG_ARTICLE_DETAIL_PATH_PREFIX,
     BLOG_ARTICLES_PATH,
     BLOG_CATEGORIES_PATH,
-    DOCS_PATH_PREFIX,
-    HTTP_GET_METHOD,
-    HTTP_OPTIONS_METHOD,
-    OPENAPI_PATH,
-    REDOC_PATH_PREFIX,
 )
 from app.core.config import settings
 from app.modules.auth.security import decode_access_token
@@ -42,8 +46,6 @@ PUBLIC_PREFIXES = (
     REDOC_PATH_PREFIX,
 )
 
-PUBLIC_API_PREFIXES: tuple[str, ...] = ()
-
 PUBLIC_METHOD_PATHS: set[tuple[str, str]] = {
     (HTTP_GET_METHOD, BLOG_ARTICLES_PATH),
     (HTTP_GET_METHOD, BLOG_CATEGORIES_PATH),
@@ -52,6 +54,12 @@ PUBLIC_METHOD_PATHS: set[tuple[str, str]] = {
 PUBLIC_METHOD_PATH_PREFIXES: set[tuple[str, str]] = {
     (HTTP_GET_METHOD, BLOG_ARTICLE_DETAIL_PATH_PREFIX),
 }
+
+
+def _matches_prefix(path: str, prefixes: tuple[str, ...]) -> bool:
+    """Проверяет, что путь начинается с одного из заданных префиксов."""
+
+    return any(path.startswith(prefix) for prefix in prefixes)
 
 
 def _is_public_path(method: str, path: str) -> bool:
@@ -69,16 +77,13 @@ def _is_public_path(method: str, path: str) -> bool:
     ):
         return True
 
-    if any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES):
-        return True
-
-    return any(path.startswith(prefix) for prefix in PUBLIC_API_PREFIXES)
+    return _matches_prefix(path, PUBLIC_PREFIXES)
 
 
 def _is_protected_path(path: str) -> bool:
     """Проверяет, относится ли путь к защищённой зоне API."""
 
-    return any(path.startswith(prefix) for prefix in PROTECTED_PREFIXES)
+    return _matches_prefix(path, PROTECTED_PREFIXES)
 
 
 def _is_protected_request(request: Request) -> bool:

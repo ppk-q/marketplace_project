@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import PurePosixPath
 
-from app.constants import (
+from app.constants_media import (
     IMAGE_KEY_MAX_LENGTH,
     MEDIA_ALLOWED_IMAGE_CONTENT_TYPES,
     MEDIA_ALLOWED_IMAGE_EXTENSIONS,

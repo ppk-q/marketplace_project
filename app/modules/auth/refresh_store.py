@@ -9,7 +9,7 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.constants import (
+from app.constants_auth import (
     AUTH_REFRESH_REDIS_KEY_PREFIX_DEFAULT,
     AUTH_REFRESH_STORE_BACKEND_MEMORY,
     AUTH_REFRESH_STORE_BACKEND_REDIS,
@@ -47,6 +47,12 @@ _STORE: dict[str, RefreshTokenState] = {}
 _LOCK = RLock()
 _REDIS_LOCK = RLock()
 _REDIS_CLIENT: Any | None = None
+
+
+def _now_utc() -> datetime:
+    """Возвращает текущее UTC-время для операций store."""
+
+    return datetime.now(UTC)
 
 
 async def register_refresh_token(
@@ -95,7 +101,7 @@ async def is_refresh_token_active(session: AsyncSession, token_id: str) -> bool:
     if _use_redis_backend():
         return await _is_refresh_token_active_redis(token_id)
 
-    now = datetime.now(UTC)
+    now = _now_utc()
     stmt = (
         select(RefreshToken.token_id)
         .where(RefreshToken.token_id == token_id)
@@ -135,7 +141,7 @@ async def rotate_refresh_token(
             expires_at=expires_at,
         )
 
-    now = datetime.now(UTC)
+    now = _now_utc()
     revoke_stmt = (
         update(RefreshToken)
         .where(RefreshToken.token_id == old_token_id)
@@ -245,7 +251,7 @@ def _is_refresh_token_active_memory(token_id: str) -> bool:
         return bool(
             state
             and state.is_active
-            and state.expires_at > datetime.now(UTC)
+            and state.expires_at > _now_utc()
             and state.replaced_by_token_id is None
         )
 
@@ -261,7 +267,7 @@ def _rotate_refresh_token_memory(
             return False
         if not old_state.is_active:
             return False
-        if old_state.expires_at <= datetime.now(UTC):
+        if old_state.expires_at <= _now_utc():
             return False
 
         old_state.is_active = False
@@ -291,7 +297,7 @@ async def _cleanup_refresh_tokens(
 ) -> None:
     """Удаляет истёкшие и отозванные refresh-токены из DB backend."""
 
-    now = datetime.now(UTC)
+    now = _now_utc()
     cleanup_stmt = delete(RefreshToken).where(
         or_(
             RefreshToken.expires_at <= now,
@@ -440,5 +446,5 @@ def _redis_token_key(token_id: str) -> str:
 def _ttl_seconds(expires_at: datetime) -> int:
     """Возвращает TTL в секундах до истечения refresh-токена."""
 
-    ttl_seconds = int((expires_at - datetime.now(UTC)).total_seconds())
+    ttl_seconds = int((expires_at - _now_utc()).total_seconds())
     return max(ttl_seconds, 0)

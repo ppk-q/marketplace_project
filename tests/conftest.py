@@ -37,6 +37,15 @@ def _reset_refresh_store() -> None:
     clear_refresh_store()
 
 
+@pytest.fixture(autouse=True)
+def _clear_dependency_overrides() -> None:
+    from app.main import app
+
+    app.dependency_overrides.clear()
+    yield
+    app.dependency_overrides.clear()
+
+
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[httpx.AsyncClient]:
     from app.core.db import get_session

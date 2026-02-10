@@ -1,127 +1,43 @@
+"""Compatibility facade for constants.
+
+Deprecated for new code:
+- `app.constants_auth`
+- `app.constants_blog`
+- `app.constants_media`
+- `app.constants_api`
+- `app.constants_system`
+
+Старые импорты через `app.constants` оставлены для обратной совместимости.
+"""
+
 from __future__ import annotations
 
-# Blog
-TITLE_MIN_LENGTH = 1
-TITLE_MAX_LENGTH = 255
-TEXT_MIN_LENGTH = 1
-IMAGE_KEY_MAX_LENGTH = 1024
-PAGE_DEFAULT = 1
-PAGE_SIZE_DEFAULT = 20
-PAGE_SIZE_MIN = 1
-PAGE_SIZE_MAX = 50
-SEARCH_MIN_LENGTH = 1
+from app import constants_api as _api_constants
+from app import constants_auth as _auth_constants
+from app import constants_blog as _blog_constants
+from app import constants_media as _media_constants
+from app import constants_system as _system_constants
 
-# Media / S3
-S3_DEFAULT_BUCKET_NAME = "blog-images"
-S3_DEFAULT_REGION = "us-east-1"
-S3_DEFAULT_PRESIGNED_TTL_SECONDS = 900
-S3_MAX_PRESIGNED_TTL_SECONDS = 24 * 60 * 60
-MEDIA_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
-MEDIA_ALLOWED_IMAGE_EXTENSIONS = ("jpg", "jpeg", "png", "webp")
-MEDIA_ALLOWED_IMAGE_CONTENT_TYPES = ("image/jpeg", "image/png", "image/webp")
-MEDIA_IMAGE_CONTENT_TYPE_BY_EXTENSION = {
-    "jpg": "image/jpeg",
-    "jpeg": "image/jpeg",
-    "png": "image/png",
-    "webp": "image/webp",
-}
-MEDIA_IMAGE_KEY_PREFIX = "articles/"
-MEDIA_IMAGE_KEY_REGEX = r"^articles/[A-Za-z0-9][A-Za-z0-9/_\.-]*$"
-MEDIA_TAG = "media"
-MEDIA_PREFIX = "/media"
-
-# Auth
-EMAIL_MIN_LENGTH = 3
-EMAIL_MAX_LENGTH = 50
-PHONE_MAX_LENGTH = 32
-PASSWORD_MIN_LENGTH = 8
-PASSWORD_MAX_LENGTH = 128
-
-# JWT
-JWT_DEFAULT_SECRET = "dev-insecure-secret"
-JWT_DEFAULT_ALGORITHM = "HS256"
-JWT_DEFAULT_ACCESS_TTL_MINUTES = 60
-JWT_DEFAULT_EMAIL_CONFIRM_TTL_MINUTES = 24 * 60
-JWT_DEFAULT_REFRESH_TTL_MINUTES = 7 * 24 * 60
-JWT_MAX_ACCESS_TTL_MINUTES = 24 * 60
-JWT_CLAIM_SUB = "sub"
-JWT_CLAIM_EMAIL = "email"
-JWT_CLAIM_EXP = "exp"
-JWT_CLAIM_IAT = "iat"
-JWT_CLAIM_JTI = "jti"
-JWT_CLAIM_TOKEN_TYPE = "token_type"
-JWT_TOKEN_TYPE_ACCESS = "access"
-JWT_TOKEN_TYPE_EMAIL_CONFIRM = "email_confirm"
-JWT_TOKEN_TYPE_REFRESH = "refresh"
-JWT_REFRESH_TOKEN_ID_LENGTH = 32
-
-# Refresh token store
-AUTH_REFRESH_STORE_BACKEND_DB = "db"
-AUTH_REFRESH_STORE_BACKEND_MEMORY = "memory"
-AUTH_REFRESH_STORE_BACKEND_REDIS = "redis"
-AUTH_REFRESH_STORE_BACKEND_DEFAULT = AUTH_REFRESH_STORE_BACKEND_DB
-AUTH_REDIS_URL_DEFAULT = "redis://localhost:6379/0"
-AUTH_REFRESH_REDIS_KEY_PREFIX_DEFAULT = "auth:refresh:token"
-
-# Печеньки
-AUTH_COOKIE_NAME_DEFAULT = "access_token"
-AUTH_REFRESH_COOKIE_NAME_DEFAULT = "refresh_token"
-AUTH_COOKIE_SAMESITE_DEFAULT = "lax"
-AUTH_COOKIE_HTTPONLY = True
-AUTH_COOKIE_DOMAIN_DEFAULT = ""
-
-# API роуты и МВ
-API_V1_PREFIX = "/api/v1"
-AUTH_PREFIX = "/auth"
-AUTH_TAG = "auth"
-AUTH_REGISTER_PATH = f"{API_V1_PREFIX}{AUTH_PREFIX}/register"
-AUTH_LOGIN_PATH = f"{API_V1_PREFIX}{AUTH_PREFIX}/login"
-AUTH_CONFIRM_EMAIL_ENDPOINT = "/confirm-email"
-AUTH_CONFIRM_EMAIL_PATH = f"{API_V1_PREFIX}{AUTH_PREFIX}{AUTH_CONFIRM_EMAIL_ENDPOINT}"
-AUTH_REFRESH_ENDPOINT = "/refresh"
-AUTH_REFRESH_PATH = f"{API_V1_PREFIX}{AUTH_PREFIX}{AUTH_REFRESH_ENDPOINT}"
-AUTH_LOGOUT_ENDPOINT = "/logout"
-AUTH_LOGOUT_PATH = f"{API_V1_PREFIX}{AUTH_PREFIX}{AUTH_LOGOUT_ENDPOINT}"
-BLOG_ARTICLES_PATH = f"{API_V1_PREFIX}/articles"
-BLOG_ARTICLE_DETAIL_PATH_PREFIX = f"{BLOG_ARTICLES_PATH}/"
-BLOG_CATEGORIES_PATH = f"{API_V1_PREFIX}/categories"
-AUTH_COOKIE_PATH_ACCESS = API_V1_PREFIX
-AUTH_COOKIE_PATH_REFRESH = f"{API_V1_PREFIX}{AUTH_PREFIX}"
-OPENAPI_PATH = "/openapi.json"
-DOCS_PATH_PREFIX = "/docs"
-REDOC_PATH_PREFIX = "/redoc"
-HTTP_OPTIONS_METHOD = "OPTIONS"
-HTTP_GET_METHOD = "GET"
-MEDIA_PRESIGN_UPLOAD_PATH = f"{API_V1_PREFIX}{MEDIA_PREFIX}/presign-upload"
-MEDIA_PRESIGN_DOWNLOAD_PATH = f"{API_V1_PREFIX}{MEDIA_PREFIX}/presign-download"
-
-# Auth сообщения
-AUTH_DETAIL_NOT_AUTHENTICATED = "Not authenticated"
-AUTH_DETAIL_INVALID_OR_EXPIRED_TOKEN = "Invalid or expired token"
-AUTH_DETAIL_INVALID_CREDENTIALS = "Invalid email or password"
-AUTH_DETAIL_AUTH_SERVICE_UNAVAILABLE = "Authentication service unavailable"
-AUTH_DETAIL_LOGIN_SUCCESS = "Login successful"
-AUTH_DETAIL_EMAIL_NOT_CONFIRMED = "Email is not confirmed"
-AUTH_DETAIL_REFRESH_SUCCESS = "Token refreshed successfully"
-AUTH_DETAIL_LOGOUT_SUCCESS = "Logged out successfully"
-AUTH_DETAIL_USER_EMAIL_EXISTS = "User with this email already exists"
-AUTH_DETAIL_USER_EMAIL_OR_PHONE_EXISTS = "User with this email or phone already exists"
-AUTH_DETAIL_EMAIL_CONFIRMED = "Email confirmed successfully"
-AUTH_DETAIL_EMAIL_ALREADY_CONFIRMED = "Email is already confirmed"
-AUTH_DETAIL_INVALID_OR_EXPIRED_CONFIRM_TOKEN = (
-    "Invalid or expired email confirmation token"
+# Re-export UPPER_CASE constants from domain modules for legacy imports.
+_CONSTANT_MODULES = (
+    _api_constants,
+    _auth_constants,
+    _blog_constants,
+    _media_constants,
+    _system_constants,
 )
-AUTH_DETAIL_INVALID_OR_EXPIRED_REFRESH_TOKEN = "Invalid or expired refresh token"
 
-# Media messages
-MEDIA_DETAIL_INVALID_FILE_EXTENSION = "Unsupported image file extension"
-MEDIA_DETAIL_INVALID_CONTENT_TYPE = "Unsupported image content type"
-MEDIA_DETAIL_CONTENT_TYPE_EXTENSION_MISMATCH = (
-    "Content type does not match file extension"
-)
-MEDIA_DETAIL_INVALID_FILE_SIZE = "Invalid image size"
-MEDIA_DETAIL_INVALID_IMAGE_KEY = "Invalid image key"
-MEDIA_DETAIL_STORAGE_UNAVAILABLE = "Storage service unavailable"
+for _module in _CONSTANT_MODULES:
+    globals().update(
+        {name: value for name, value in vars(_module).items() if name.isupper()}
+    )
 
-# ДБ ошибка
-DATABASE_URL_IS_NOT_SET_ERROR = "DATABASE_URL is not set"
+__all__ = sorted(name for name in globals() if name.isupper())
+
+del _module
+del _CONSTANT_MODULES
+del _api_constants
+del _auth_constants
+del _blog_constants
+del _media_constants
+del _system_constants

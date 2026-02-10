@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.constants import JWT_REFRESH_TOKEN_ID_LENGTH
+from app.constants_auth import JWT_REFRESH_TOKEN_ID_LENGTH
 from app.core.models import Base, IntIdPkMixin
 
 

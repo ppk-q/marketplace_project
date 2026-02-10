@@ -5,12 +5,12 @@ from math import ceil
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.constants import (
-    IMAGE_KEY_MAX_LENGTH,
+from app.constants_blog import (
     TEXT_MIN_LENGTH,
     TITLE_MAX_LENGTH,
     TITLE_MIN_LENGTH,
 )
+from app.constants_media import IMAGE_KEY_MAX_LENGTH
 from app.modules.media.validators import validate_image_key
 
 

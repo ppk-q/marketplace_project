@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.constants import (
+from app.constants_media import (
     IMAGE_KEY_MAX_LENGTH,
     MEDIA_MAX_IMAGE_SIZE_BYTES,
 )
