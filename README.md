@@ -36,6 +36,16 @@ Backend-сервис блога маркетплейса на FastAPI.
 - `tests/` - тесты
 - `docker-compose.yml` - локальный стек
 
+## Константы
+
+- `app/constants.py` сохранён как compatibility facade и считается deprecated для новых правок.
+- Для нового кода используйте доменные модули:
+- `app/constants_auth.py`
+- `app/constants_blog.py`
+- `app/constants_media.py`
+- `app/constants_api.py`
+- `app/constants_system.py`
+
 ## Требования
 
 - Docker + Docker Compose (рекомендуется)

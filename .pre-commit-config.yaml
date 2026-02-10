@@ -19,3 +19,11 @@ repos:
       - id: ruff
         args: ["--fix", "--exit-non-zero-on-fix"]
       - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: check-no-legacy-constants-imports
+        name: check-no-legacy-constants-imports
+        entry: bash scripts/check_no_legacy_constants_imports.sh
+        language: system
+        pass_filenames: false

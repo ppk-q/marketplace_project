@@ -19,6 +19,9 @@
 - Prefer small pure functions and explicit typing.
 - Do not introduce new dependencies without explicit justification.
 - Keep API changes backward-compatible unless task explicitly says otherwise.
+- Treat `app/constants.py` as compatibility-only; add/update constants in domain modules
+  (`app/constants_auth.py`, `app/constants_blog.py`, `app/constants_media.py`,
+  `app/constants_api.py`, `app/constants_system.py`).
 
 ## Safety / boundaries
 - Never modify `.env*`, secrets, CI credentials.
