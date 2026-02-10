@@ -47,17 +47,14 @@ class ArticleCreate(BaseModel):
         description="Основной текст статьи в формате Markdown или plain text.",
     )
     category_id: int = Field(description="ID категории, к которой относится статья.")
-    image_key: str | None = Field(
-        default=None,
+    image_key: str = Field(
         max_length=IMAGE_KEY_MAX_LENGTH,
         description="Ключ или путь до обложки статьи в файловом хранилище.",
     )
 
     @field_validator("image_key")
     @classmethod
-    def check_image_key(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
+    def check_image_key(cls, value: str) -> str:
         return validate_image_key(value)
 
 

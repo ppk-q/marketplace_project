@@ -173,6 +173,22 @@ async def list_articles(
     )
 
 
+@router.get("/articles/{article_id}", response_model=ArticleOut)
+async def get_article(
+    article_id: Annotated[int, Path(ge=1, description="ID статьи для просмотра.")],
+    session: SessionDep,
+) -> ArticleOut:
+    """Вернуть одну статью по ID вместе с категорией."""
+
+    article = await _get_article_with_category(session, article_id)
+    if article is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Article not found",
+        )
+    return article
+
+
 @router.patch("/articles/{article_id}", response_model=ArticleOut)
 async def update_article(
     article_id: Annotated[int, Path(ge=1, description="ID статьи для обновления.")],
