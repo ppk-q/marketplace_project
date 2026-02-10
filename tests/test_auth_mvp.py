@@ -8,16 +8,21 @@ import pytest
 
 from app.constants import (
     AUTH_CONFIRM_EMAIL_PATH,
+    AUTH_COOKIE_PATH_REFRESH,
     AUTH_DETAIL_EMAIL_CONFIRMED,
     AUTH_DETAIL_EMAIL_NOT_CONFIRMED,
     AUTH_DETAIL_INVALID_CREDENTIALS,
     AUTH_DETAIL_INVALID_OR_EXPIRED_CONFIRM_TOKEN,
+    AUTH_DETAIL_INVALID_OR_EXPIRED_REFRESH_TOKEN,
     AUTH_DETAIL_LOGIN_SUCCESS,
+    AUTH_DETAIL_LOGOUT_SUCCESS,
+    AUTH_DETAIL_REFRESH_SUCCESS,
 )
 from app.core.config import settings
 from app.modules.auth import router as auth_router_module
 from app.modules.auth.security import (
     create_email_confirm_token,
+    create_refresh_token,
     decode_email_confirm_token,
     hash_password,
 )
@@ -262,3 +267,177 @@ async def test_login_unconfirmed_email_returns_forbidden(client, monkeypatch) ->
 
     assert response.status_code == 403
     assert response.json()["detail"] == AUTH_DETAIL_EMAIL_NOT_CONFIRMED
+
+
+@pytest.mark.asyncio
+async def test_refresh_with_valid_cookie_rotates_refresh_token(
+    client, monkeypatch
+) -> None:
+    fake_user = SimpleNamespace(
+        id=51,
+        email="refresh-ok@example.com",
+        password_hash=hash_password("strong-pass-123"),
+        is_email_confirmed=True,
+    )
+
+    async def fake_get_user_by_email(session, email: str):
+        if email == fake_user.email:
+            return fake_user
+        return None
+
+    async def fake_get_user_by_id(session, user_id: int):
+        if user_id == fake_user.id:
+            return fake_user
+        return None
+
+    monkeypatch.setattr(
+        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+    )
+    monkeypatch.setattr(auth_router_module, "_get_user_by_id", fake_get_user_by_id)
+
+    login_response = await client.post(
+        "/api/v1/auth/login",
+        json={"email": fake_user.email, "password": "strong-pass-123"},
+    )
+    assert login_response.status_code == 200
+    old_refresh_token = login_response.cookies.get(settings.auth_refresh_cookie_name)
+    assert old_refresh_token is not None
+
+    refresh_response = await client.post("/api/v1/auth/refresh")
+    assert refresh_response.status_code == 200
+    assert refresh_response.json()["detail"] == AUTH_DETAIL_REFRESH_SUCCESS
+
+    new_refresh_token = refresh_response.cookies.get(settings.auth_refresh_cookie_name)
+    assert new_refresh_token is not None
+    assert new_refresh_token != old_refresh_token
+
+    set_cookie_headers = " ".join(refresh_response.headers.get_list("set-cookie"))
+    assert f"{settings.auth_cookie_name}=" in set_cookie_headers
+    assert f"{settings.auth_refresh_cookie_name}=" in set_cookie_headers
+
+
+@pytest.mark.asyncio
+async def test_refresh_with_expired_token_returns_auth_error(client) -> None:
+    expired_refresh_token = create_refresh_token(
+        user_id=61,
+        email="expired-refresh@example.com",
+        ttl_minutes=-1,
+    )
+    client.cookies.set(
+        settings.auth_refresh_cookie_name,
+        expired_refresh_token,
+        path=AUTH_COOKIE_PATH_REFRESH,
+    )
+
+    response = await client.post("/api/v1/auth/refresh")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == AUTH_DETAIL_INVALID_OR_EXPIRED_REFRESH_TOKEN
+
+
+@pytest.mark.asyncio
+async def test_refresh_reuse_old_rotated_token_returns_auth_error(
+    client, monkeypatch
+) -> None:
+    fake_user = SimpleNamespace(
+        id=71,
+        email="rotate@example.com",
+        password_hash=hash_password("strong-pass-123"),
+        is_email_confirmed=True,
+    )
+
+    async def fake_get_user_by_email(session, email: str):
+        if email == fake_user.email:
+            return fake_user
+        return None
+
+    async def fake_get_user_by_id(session, user_id: int):
+        if user_id == fake_user.id:
+            return fake_user
+        return None
+
+    monkeypatch.setattr(
+        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+    )
+    monkeypatch.setattr(auth_router_module, "_get_user_by_id", fake_get_user_by_id)
+
+    login_response = await client.post(
+        "/api/v1/auth/login",
+        json={"email": fake_user.email, "password": "strong-pass-123"},
+    )
+    assert login_response.status_code == 200
+
+    old_refresh_token = login_response.cookies.get(settings.auth_refresh_cookie_name)
+    assert old_refresh_token is not None
+
+    first_refresh = await client.post("/api/v1/auth/refresh")
+    assert first_refresh.status_code == 200
+
+    client.cookies.set(
+        settings.auth_refresh_cookie_name,
+        old_refresh_token,
+        path=AUTH_COOKIE_PATH_REFRESH,
+    )
+    second_refresh = await client.post("/api/v1/auth/refresh")
+
+    assert second_refresh.status_code == 401
+    assert (
+        second_refresh.json()["detail"] == AUTH_DETAIL_INVALID_OR_EXPIRED_REFRESH_TOKEN
+    )
+
+
+@pytest.mark.asyncio
+async def test_logout_clears_cookies_and_blocks_further_refresh(
+    client, monkeypatch
+) -> None:
+    fake_user = SimpleNamespace(
+        id=81,
+        email="logout@example.com",
+        password_hash=hash_password("strong-pass-123"),
+        is_email_confirmed=True,
+    )
+
+    async def fake_get_user_by_email(session, email: str):
+        if email == fake_user.email:
+            return fake_user
+        return None
+
+    async def fake_get_user_by_id(session, user_id: int):
+        if user_id == fake_user.id:
+            return fake_user
+        return None
+
+    monkeypatch.setattr(
+        auth_router_module, "_get_user_by_email", fake_get_user_by_email
+    )
+    monkeypatch.setattr(auth_router_module, "_get_user_by_id", fake_get_user_by_id)
+
+    login_response = await client.post(
+        "/api/v1/auth/login",
+        json={"email": fake_user.email, "password": "strong-pass-123"},
+    )
+    assert login_response.status_code == 200
+    old_refresh_token = login_response.cookies.get(settings.auth_refresh_cookie_name)
+    assert old_refresh_token is not None
+
+    logout_response = await client.post("/api/v1/auth/logout")
+    assert logout_response.status_code == 200
+    assert logout_response.json()["detail"] == AUTH_DETAIL_LOGOUT_SUCCESS
+
+    set_cookie_headers = " ".join(logout_response.headers.get_list("set-cookie"))
+    assert f"{settings.auth_cookie_name}=" in set_cookie_headers
+    assert f"{settings.auth_refresh_cookie_name}=" in set_cookie_headers
+    assert "Max-Age=0" in set_cookie_headers
+
+    client.cookies.set(
+        settings.auth_refresh_cookie_name,
+        old_refresh_token,
+        path=AUTH_COOKIE_PATH_REFRESH,
+    )
+    refresh_response = await client.post("/api/v1/auth/refresh")
+
+    assert refresh_response.status_code == 401
+    assert (
+        refresh_response.json()["detail"]
+        == AUTH_DETAIL_INVALID_OR_EXPIRED_REFRESH_TOKEN
+    )

@@ -54,3 +54,15 @@ class ConfirmEmailOut(BaseModel):
     """Схема ответа для подтверждения адреса электронной почты."""
 
     detail: str
+
+
+class RefreshOut(BaseModel):
+    """Схема ответа при успешном обновлении токенов авторизации."""
+
+    detail: str
+
+
+class LogoutOut(BaseModel):
+    """Схема ответа при успешном выходе пользователя из системы."""
+
+    detail: str
