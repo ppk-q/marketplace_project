@@ -9,12 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from alembic import context
 
-# Если у тебя DATABASE_URL лежит в settings — импортируй настройки
 # from app.core.config import settings
 from app.core.models import Base
-
-# ВАЖНО: импортируем модели, чтобы они зарегистрировались в Base.metadata
-from app.modules.auth.models import User  # noqa: F401
+from app.modules.auth.models import RefreshToken, User  # noqa: F401
 from app.modules.blog.models import Article, Category, DeletedArticle  # noqa: F401
 
 config = context.config
@@ -24,12 +21,20 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+DATABASE_URL_MISSING_ERROR = (
+    "DATABASE_URL is not set. "
+    "Use Docker Compose: `docker compose exec -T api alembic upgrade head`; "
+    "or run locally with explicit env: "
+    "`DATABASE_URL=postgresql+asyncpg://app:app@localhost:5432/app "
+    "poetry run alembic upgrade head`."
+)
+
 
 def get_url() -> str:
     # заглушка для тестов
     url = os.getenv("DATABASE_URL")
     if not url:
-        raise RuntimeError("DATABASE_URL is not set")
+        raise RuntimeError(DATABASE_URL_MISSING_ERROR)
     return url
 
     # Должно вернуть строку вида: postgresql+asyncpg://user:pass@host:5432/dbname

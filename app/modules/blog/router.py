@@ -148,8 +148,9 @@ async def list_articles(
         filters.append(Article.category_id == category_id)
 
     if search:
-        # FTS без индекса на старте (потом добавим GIN миграцией)
-        doc = func.concat_ws(" ", Article.title, Article.text)
+        doc = func.coalesce(Article.title, "")
+        doc = doc.op("||")(" ")
+        doc = doc.op("||")(func.coalesce(Article.text, ""))
         ts_vec = func.to_tsvector("russian", doc)
         ts_q = func.plainto_tsquery("russian", search)
         filters.append(ts_vec.op("@@")(ts_q))
@@ -212,7 +213,6 @@ async def update_article(
     if payload.text is not None:
         article.text = payload.text
     if payload.image_key is not None or "image_key" in payload.model_fields_set:
-        # Учитываем явное null, чтобы можно было сбросить обложку
         article.image_key = payload.image_key
 
     session.add(article)

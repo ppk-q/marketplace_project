@@ -9,12 +9,35 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
 
   rabbitmq:
     image: rabbitmq:3-management
     ports:
       - "5672:5672"
       - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
 
   minio:
     image: minio/minio:latest
@@ -37,6 +60,9 @@ services:
       - ./:/app
     ports:
       - "8000:8000"
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn app.main:app --host 0.0.0.0 --port 8000"
     environment:
       APP_ENV: dev
       DATABASE_URL: postgresql+asyncpg://app:app@postgres:5432/app
@@ -52,10 +78,18 @@ services:
       MINIO_SECRET_KEY: minioadmin
       MINIO_BUCKET: blog-images
       MINIO_SECURE: 0
+      AUTH_REFRESH_STORE_BACKEND: ${AUTH_REFRESH_STORE_BACKEND:-redis}
+      AUTH_REDIS_URL: ${AUTH_REDIS_URL:-redis://redis:6379/0}
+      AUTH_REFRESH_REDIS_KEY_PREFIX: ${AUTH_REFRESH_REDIS_KEY_PREFIX:-auth:refresh:token}
     depends_on:
-      - postgres
-      - rabbitmq
-      - minio
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
 
   worker:
     build:
@@ -65,7 +99,8 @@ services:
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
     depends_on:
-      - rabbitmq
+      rabbitmq:
+        condition: service_healthy
 
 volumes:
   pg_data:
