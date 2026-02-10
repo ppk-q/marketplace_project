@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction --no-ansi
 
+      - name: Guard constants imports
+        run: bash scripts/check_no_legacy_constants_imports.sh
+
       - name: Ruff lint
         run: poetry run ruff check .
 
