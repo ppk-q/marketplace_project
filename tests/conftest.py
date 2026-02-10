@@ -6,6 +6,7 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 
 import httpx
+import pytest
 import pytest_asyncio
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -16,6 +17,7 @@ os.environ.setdefault(
     "DATABASE_URL", "postgresql+asyncpg://app:app@localhost:5432/app_test"
 )
 os.environ.setdefault("JWT_SECRET", "test-secret")
+os.environ.setdefault("AUTH_REFRESH_STORE_BACKEND", "memory")
 
 
 class DummySession:
@@ -24,6 +26,15 @@ class DummySession:
 
 async def _dummy_get_session() -> AsyncGenerator[DummySession]:
     yield DummySession()
+
+
+@pytest.fixture(autouse=True)
+def _reset_refresh_store() -> None:
+    from app.modules.auth.refresh_store import clear_refresh_store
+
+    clear_refresh_store()
+    yield
+    clear_refresh_store()
 
 
 @pytest_asyncio.fixture
